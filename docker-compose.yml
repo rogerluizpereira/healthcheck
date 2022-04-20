@@ -1,21 +1,7 @@
-
 services:
    healthchecks:
     image: rogerpereira/healthcheck:latest
     container_name: healthcheck
     ports:
-      - 8080:80 
-    environment:
-      - DB_HOST=
-      - DB_NAME=dbprovas
-      - DB_USERNAME=
-      - DB_PASSWORD=
-      - REDIS_CACHE_HOST=
-      - REDIS_CACHE_PORT=
-      - REDIS_HOST=
-      - REDIS_PORT=
-      - ELASTICSEARCH_HOST=
-      #- ELASTICSEARCH_PORT=
-      - AWS_DYNAMO_KEY=
-      - AWS_DYNAMO_SECRET=
-      - AWS_DYNAMO_REGION=
+      - 8080:80
+    env_file: .env.prd

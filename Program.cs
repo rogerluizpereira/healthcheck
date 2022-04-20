@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var dbString = 
+var timeout = new TimeSpan(0,0,int.Parse(builder.Configuration["TIMEOUT"]));
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -12,16 +13,16 @@ builder.Services.AddHealthChecks()
                                                 builder.Configuration["DB_NAME"],
                                                 builder.Configuration["DB_USERNAME"],
                                                 builder.Configuration["DB_PASSWORD"])
-            , name: "MySQL")
-    .AddRedis(redisConnectionString: builder.Configuration["REDIS_CACHE_HOST"] + ":" + builder.Configuration["REDIS_CACHE_PORT"], name: "Redis Dados")
-    .AddRedis(redisConnectionString: builder.Configuration["REDIS_HOST"] + ":" + builder.Configuration["REDIS_PORT"], name: "Redis Session")
-    .AddElasticsearch ( elasticsearchUri: builder.Configuration["ELASTICSEARCH_HOST"], name: "Elasticsearch") 
+            , name: "MySQL", timeout: timeout)
+    .AddRedis(redisConnectionString: builder.Configuration["REDIS_CACHE_HOST"] + ":" + builder.Configuration["REDIS_CACHE_PORT"], name: "Redis Dados", timeout: timeout)
+    .AddRedis(redisConnectionString: builder.Configuration["REDIS_HOST"] + ":" + builder.Configuration["REDIS_PORT"], name: "Redis Session", timeout: timeout)
+    .AddElasticsearch ( elasticsearchUri: builder.Configuration["ELASTICSEARCH_HOST"], name: "Elasticsearch", timeout: timeout) 
     .AddDynamoDb(db => {
                  db.AccessKey = builder.Configuration["AWS_DYNAMO_KEY"];
                  db.SecretKey = builder.Configuration["AWS_DYNAMO_SECRET"];
-                 db.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(builder.Configuration["AWS_DYNAMO_REGION"]);
-    }
-);
+                 db.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(builder.Configuration["AWS_DYNAMO_REGION"]);               
+                 }, name: "DynamoDB", timeout: timeout)
+   .AddUrlGroup(new Uri(builder.Configuration["ROTA_API_HEALTH"]), name: "Rota API", failureStatus: HealthStatus.Degraded, timeout: timeout);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -30,10 +31,12 @@ builder.Services.AddCors();
 
 builder.Services.AddHealthChecksUI(options =>
 {
-    options.SetEvaluationTimeInSeconds(5);
-    options.SetMinimumSecondsBetweenFailureNotifications(5);
-    options.MaximumHistoryEntriesPerEndpoint(100);
-    //Workaround para rodar no docker do mac
+
+    options.SetEvaluationTimeInSeconds(int.Parse(builder.Configuration["EVALUATION_TIME"]));
+    options.SetMinimumSecondsBetweenFailureNotifications(int.Parse(builder.Configuration["SEC_BETWEEN_FAILURE_NOTIFICATIONS"]));
+    options.MaximumHistoryEntriesPerEndpoint(int.Parse(builder.Configuration["HISTORY_ENTRIES"]));
+
+    //Workaround para rodar no docker do mac (caminho relativo no docker mac não funcionou)
     //options.AddHealthCheckEndpoint("Questões", "/health");
     options.AddHealthCheckEndpoint("Questões", "http://localhost/health");
     //Ignorar certificados HTTPS
